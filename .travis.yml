@@ -1,0 +1,13 @@
+cache:
+  directories:
+    - previous
+script:
+  - ./.travis.yml.script
+
+matrix:
+  include:
+    - os: linux
+      sudo: false
+    - os: linux
+      sudo: required
+    - os: osx

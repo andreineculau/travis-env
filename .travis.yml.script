@@ -1,0 +1,64 @@
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+function log_filename() {
+    echo "${TRAVIS_OS_NAME}_${TRAVIS_SUDO}_${1}.txt"
+}
+
+function log() {
+    tee "current/$(log_filename $1)"
+}
+
+function diff_log() {
+    [ -f "previous/$(log_filename $1)" ] || return 0
+    diff --suppress-common-lines "previous/$(log_filename $1)" "current/$(log_filename $1)" || true
+}
+
+function run_fold() {
+    FOLD_NAME=$1
+
+    echo "travis_fold:start:${FOLD_NAME}"
+    "run_${FOLD_NAME}" | log "${FOLD_NAME}"
+    echo "travis_fold:end:${FOLD_NAME}"
+
+    echo "travis_fold:start:${FOLD_NAME}-diff"
+    diff_log "${FOLD_NAME}"
+    echo "travis_fold:end:${FOLD_NAME}-diff"
+}
+
+# ------------------------------------------------------------------------------
+
+function run_printenv() {
+    printenv
+}
+
+function run_ls_executables_in_path() {
+    echo "PATH=${PATH}"
+    echo "${PATH//:/$'\n'}" | while read -r DIR; do
+        echo "${DIR}"
+        [ -d "${DIR}" ] || continue
+        find "${DIR}" -type f -exec test -x {} \; -print || true
+    done
+}
+
+function run_ls_installed() {
+    case "${TRAVIS_OS_NAME}" in
+        linux)
+            apt list --installed
+            ;;
+        osx)
+            brew list --versions
+    esac
+}
+
+# ------------------------------------------------------------------------------
+
+mkdir -p current
+
+run_fold printenv
+run_fold ls_executables_in_path
+run_fold ls_installed
+
+rm -rf previous
+mv current previous
